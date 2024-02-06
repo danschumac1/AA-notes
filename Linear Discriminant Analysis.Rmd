@@ -1,0 +1,99 @@
+---
+title: "linear discriminant analysis"
+author: "Dan Schumacher"
+date: "2024-02-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
+library(ggplot2)
+library(titanic)
+```
+
+
+```{r}
+# take a peak
+dim(titanic_train)
+summary(titanic_train)
+```
+
+
+
+```{r}
+# kill the missing values
+
+ttrain = na.omit(
+  titanic_train
+)
+
+ttrain = subset(
+  ttrain, ttrain$Embarked != ''
+)
+
+ttrain = subset(
+  ttrain, ttrain$Cabin != ''
+)
+
+# .8 .2 split
+
+set.seed(1)
+row.number = sample(1:nrow(ttrain), .8*nrow(ttrain))
+titantrain = ttrain[row.number,]
+titantest = ttrain[-row.number,]
+
+
+#set up model
+lda.model = lda(
+  factor(Survived) ~ factor(Pclass) + Sex + Age + SibSp,
+  data = titantrain
+)
+
+lda.model
+```
+
+
+MAKE PREDS
+```{r}
+predictions.lda = predict(lda.model,titantest)
+
+# confu matrix
+caret:: confusionMatrix(
+  as.factor(
+    predictions.lda$class
+  ),
+  as.factor(titantest$Survived)
+)
+
+```
+
+
+COMPARING TO LOGISTIC MODEL
+logmodel = glm
+
+```{r}
+logmodel = glm(
+
+  factor(Survived) ~ factor(Pclass) + Sex + Age + SibSp,
+  data = titantrain,
+  family = binomial
+)
+
+summary(logmodel)
+
+#make preds
+predictions.log = predict(logmodel, newdata = titantest, types = 'response')
+
+# convert from probs to preds
+predictions.log.surv = 
+  ifelse(
+    predictions.log >= .5,1,0
+  )
+
+caret::confusionMatrix(
+  as.factor(predictions.log.surv),
+  as.factor(titantest$Survived)
+)
+```
+

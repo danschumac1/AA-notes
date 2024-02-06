@@ -1,0 +1,55 @@
+---
+title: "Clustering"
+author: "Dan Schumacher"
+date: "2024-02-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(cluster)
+library(factoextra)
+library(dendextend)
+
+df = USArrests
+df = na.omit(df)
+#standardize
+df = scale(df)
+head(df,5)
+```
+```{r}
+# dissimilarity matrix
+d = dist(df, method = "euclidean")
+
+#cluster
+hc1 = hclust(
+  d,
+  method = 'complet'
+  )
+plot(hc1,cex = 0.6,  hang = -1)
+
+```
+cut the tree
+```{r}
+sub_group = cutree(
+  hc1,
+  k = 4
+)
+
+#shows counts in each cluster
+table(sub_group)
+
+plot(
+  hc1,
+  cex = .6)
+rect.hclust(
+  hc1,
+  k = 4,
+  border = 2:5
+)
+
+
+```
+

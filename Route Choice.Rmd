@@ -1,0 +1,121 @@
+---
+title: "RouteChoice"
+author: "Dan Schumacher"
+date: "2024-02-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(logistf)
+RouteData = read.csv(
+  '../data/Segmentation_TravelRouteClassify.csv',
+  header = F
+)
+```
+
+What does it look like?
+
+```{r}
+str(RouteData) # everything is int
+# not everything should be...
+# some missing values (all intagers)
+RouteTrain = na.omit(RouteData)
+# remove cols 1 ,3 , 4 (bc teacher says so irrelevant)
+RouteTrain = RouteTrain[c(2, 5:17)]
+names(RouteTrain) = c("ArterialRoute", "TrafficFlow",
+                     "TrafficSignalNumber", "Distance", "SeatBelts",
+                     "Passengers", "DriverAge", "Gender", "Marital",
+                     "Children", "Income", "CarModel", "CarOrigin", "FuelMPG")
+
+# get it out of your enviroment
+rm(RouteData)
+
+head(RouteTrain, 10)
+```
+```{r}
+# convert variables
+# don't need to convert if just binary, but for more we do...
+
+# income
+RouteTrain$IncomeF = factor(RouteTrain$Income)
+# age
+RouteTrain$DriverAgeF = factor(RouteTrain$DriverAge)
+
+# Distance
+RouteTrain$Distance = RouteTrain$Distance / 10
+
+
+```
+
+BUILD MODEL
+
+```{r}
+m1 = glm(
+  formula = ArterialRoute ~ TrafficFlow + TrafficSignalNumber + Distance + SeatBelts + Passengers + DriverAgeF  + Gender + Marital + Children + IncomeF + CarModel + CarOrigin + FuelMPG,
+  data = RouteTrain,
+  family = binomial
+) # did not converge!
+
+# that means 1 thing was very important or not important at all
+m1 = glm(
+  formula = ArterialRoute ~ TrafficFlow + TrafficSignalNumber + Distance + SeatBelts + Passengers + DriverAgeF  + Gender + Marital + Children + IncomeF + CarModel + CarOrigin + FuelMPG,
+  data = RouteTrain,
+  family = binomial,
+  control = list(maxit = 50) # one way to fix is larger iterations
+) # now our problem is too good or too bad for predicting
+# AKA we have perfect separation
+# we have a pred in our data that is a perfect split.
+ArterialRoute.sortRouteTrain =
+  RouteTrain[order(RouteTrain$ArterialRoute),]
+
+# traffic signal with 100% accuracy can predict! let us remove it!
+m1 = glm(
+  formula = ArterialRoute ~ TrafficFlow + Distance + SeatBelts + Passengers + DriverAgeF  + Gender + Marital + Children + IncomeF + CarModel + CarOrigin + FuelMPG,
+  data = RouteTrain,
+  family = binomial
+) # no errors, yay!
+
+summary(m1)
+```
+```{r}
+RouteTrain$PredProb = predict.glm(
+  m1,
+  newdata = RouteTrain,
+  type = 'response'
+)
+
+RouteTrain$PredChoice = ifelse(
+  RouteTrain$PredProb >= .5,1,0
+)
+
+caret::confusionMatrix(
+  as.factor(RouteTrain$ArterialRoute),
+            as.factor(RouteTrain$PredChoice))
+)
+```
+
+NOW ANOTHERWAY WITH LOG WITH PENTALTY
+
+```{r}
+fm1 = logistf(
+  formula = ArterialRoute ~ TrafficFlow + TrafficSignalNumber + Distance + SeatBelts + 
+            Passengers + DriverAgeF + Gender + Marital + Children + IncomeF + CarModel + 
+            CarOrigin + FuelMPG,
+  data = RouteTrain,
+  firth = T,
+  control = logistf.control(maxit = 300, maxstep = 0.9)
+)
+
+probsf = fm1$predict
+PredChoiceFirth = ifelse(
+  probsf >=.5,1,0
+)
+
+caret::confusionMatrix(
+  as.factor(RouteTrain$ArterialRoute),
+  as.factor(PredChoiceFirth)
+) # perfect predictions
+
+```
+

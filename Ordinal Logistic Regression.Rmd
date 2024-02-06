@@ -1,0 +1,47 @@
+---
+title: "Ordinal Logistic Regression"
+author: "Dan Schumacher"
+date: "2024-02-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ordinal)
+library(MASS)
+library(tidyverse)
+library(car)
+library(gridExtra)
+data(wine)
+w = wine
+```
+
+like a lichard scale (strongly disagree, disagree...) When dependent variable we use **ordinal** logisitc regression
+```{r}
+str(w)
+```
+
+clm -> cumilitive link function
+can use ordered() function if not Ord.factor type
+1 (low) 5 (high)
+
+MAKE THE DAMN MODEL!
+```{r}
+om1 = clm(
+  rating ~ contact + temp,
+  data = w
+)
+summary(om1)
+exp(coef(om1)) 
+# these are the likelyhood ratios
+
+nominal_test(om1) # fail to reject -> so satisfies assumption
+
+pm1 = polr(rating ~ contact +temp,
+           data = w)
+
+summary(pm1)
+
+exp(coef(pm1))
+```
+

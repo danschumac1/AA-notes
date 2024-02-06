@@ -1,0 +1,98 @@
+---
+title: "Logistic Regression Review"
+author: "Dan Schumacher"
+date: "2024-02-05"
+output: html_document
+---
+# LOGISTIC_REGRESSION_REVIEW
+
+Load packages into R
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(titanic)
+library(caret)
+library(lattice)
+library(ggplot2)
+library(gam)
+```
+
+```{r}
+data("titanic_train")
+#is the data in the format we are expecting?
+str(titanic_train)
+```
+```{r}
+levels(as.factor(titanic_train$Sex)) # 2 levels
+levels(as.factor(titanic_train$Embarked)) # 4 levels
+levels(as.factor(titanic_train$Pclass)) # 3 levels
+```
+
+No missing observations!
+```{r}
+# create copy of original bc we are deleting observations
+# this works for numeric columns
+ttrain = titanic_train # copy it
+ttrain = subset(ttrain, !is.na(ttrain$Survived)) # nothing missing
+ttrain = subset(ttrain, !is.na(ttrain$Pclass)) # nothing missing
+ttrain = subset(ttrain, !is.na(ttrain$Age)) # Lots missing
+ttrain = subset(ttrain, !is.na(ttrain$SibSp)) # nothing missing
+ttrain = subset(ttrain, !is.na(ttrain$Parch)) # nothing missing
+ttrain = subset(ttrain, !is.na(ttrain$Fare)) # nothing missing
+
+# this is how you have to do character columns
+ttrain = subset(ttrain, !is.nan(ttrain$Sex)) # nothing missing
+ttrain = subset(ttrain, !is.nan(ttrain$Embarked)) # nothing missing
+
+# and got to do it special for Embarked
+ttrain = subset(ttrain, ttrain$Embarked != '') # removed 2
+
+```
+
+Create dummy vars for categorical columns
+```{r}
+ttrain$sdummy = ifelse(
+  ttrain$Sex == "male",1, 0
+)
+
+ttrain$Pclass = as.factor(ttrain$Pclass)
+# str(ttrain$Pclass)# check it
+
+ttrain$Embarked = as.factor(ttrain$Embarked)
+# str(ttrain$Embarked) # check it
+
+head(ttrain, 5)
+
+```
+CREATE A LOGISTIC REGRESSION MODEL
+```{r}
+# create it
+m1 = glm(
+  formula = Survived ~ sdummy + Pclass + Embarked + Age + SibSp + Parch + Fare,
+  data = ttrain, 
+  family = binomial
+)
+
+summary(m1)
+```
+
+HOW DID OUR MODEL PERFORM?
+USUALLY YOU WOULD USE TEST SET. BUT FOR SIMPLICITY WE WILL USE THE TRAIN AGAIN?
+
+```{r}
+ttrain$PredProb = predict.glm(m1, newdata = ttrain, type = 'response') #ttrain should be ttest!
+
+# now we have probability of surviving need to convert to hard 0 or 1s
+# we will use a cutofff of .5
+ttrain$PredSur = 
+  ifelse(
+    ttrain$PredProb >= .5,1,0
+  )
+
+caret::confusionMatrix(
+  as.factor(ttrain$Survived),
+  as.factor(ttrain$PredSur)
+)
+```
+
+Can use AUC to find the optimal cut off in the case of non-balanced dataset
+Could also sample data to make it balanced.
